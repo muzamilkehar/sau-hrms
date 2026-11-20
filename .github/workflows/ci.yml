@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sau
+          POSTGRES_PASSWORD: sau
+          POSTGRES_DB: sau_hr
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sau" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sau:sau@localhost:5432/sau_hr
+      TEST_DATABASE_URL: postgresql://sau:sau@localhost:5432/sau_hr_test
+      BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-1234
+      BETTER_AUTH_URL: http://localhost:3000
+      SEED_ADMIN_EMAIL: hr@saus.edu.pk
+      SEED_ADMIN_FIRST_NAME: Sana
+      SEED_ADMIN_LAST_NAME: Rehman
+      SEED_ADMIN_PASSWORD: Kd7!-Zq4w-Lm9x-Rt2p
+      SEED_DEMO_DATA: "true"
+      SEED_DEMO_PASSWORD: Tn5#-Vb8r-Wy3k-Hf6s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Create test database and apply migrations
+        run: |
+          PGPASSWORD=sau psql -h localhost -U sau -d sau_hr -c "CREATE DATABASE sau_hr_test OWNER sau;"
+          npx prisma migrate deploy
+          DATABASE_URL=$TEST_DATABASE_URL npx prisma migrate deploy
+      - run: npm run test:integration
+      - run: npm run build
+      - name: End-to-end smoke test
+        run: |
+          npm run db:seed
+          npm start &
+          npx --yes wait-on http://localhost:3000/api/health
+          HR_PASSWORD="$SEED_ADMIN_PASSWORD" EMP_PASSWORD="$SEED_DEMO_PASSWORD" npm run smoke
+      - name: Dependency audit (SEC-012)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

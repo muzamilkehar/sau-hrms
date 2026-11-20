@@ -1,0 +1,16 @@
+# Local PostgreSQL for development and tests:  docker compose up -d
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sau
+      POSTGRES_PASSWORD: sau
+      POSTGRES_DB: sau_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - sau_pg:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+volumes:
+  sau_pg:
