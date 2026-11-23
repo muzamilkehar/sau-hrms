@@ -56,7 +56,7 @@ function createAuth() {
         await prisma.user.update({ where: { id: user.id }, data: { mustChangePassword: false, failedLoginCount: 0, lockedUntil: null } });
       },
     },
-    session: { expiresIn: SESSION_IDLE_SECONDS, updateAge: 60, freshAge: 60 * 10, cookieCache: { enabled: false } },
+    session: { expiresIn: SESSION_IDLE_SECONDS, updateAge: 60, freshAge: 60 * 10, cookieCache: { enabled: true, maxAge: 50 } },
     plugins: [nextCookies()],
     rateLimit: {
       enabled: env.NODE_ENV !== "test",
